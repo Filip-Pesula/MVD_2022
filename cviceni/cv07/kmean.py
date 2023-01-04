@@ -41,7 +41,6 @@ class Data:
             raise TypeError("l: "+"expected np.ndarray - given: "+str(type(l)))
         self.l:np.ndarray = l
         self.center =  np.zeros(l.shape,dtype=int)
-        self.datak:np.ndarray = np.zeros(self.xy.shape)
         pass
     def show(self)->None:
         cols = [str(i) for i in self.l]
@@ -57,21 +56,51 @@ class Data:
         )
         fig.show()
 
+def getMeanError(data:Data)->float:
+    groups = list()
+    for i in range(data.centroids.shape[0]):
+        groups.append(data.xy[data.center==i,:])
+    meanError = 0
+    for i,centroid in enumerate(data.centroids):
+        dist = np.linalg.norm(groups[i]-centroid,axis=1)
+        meanError+= np.sum(np.abs(dist))
+    return meanError
+def getK(data:Data,maxit:int=10,reldev = 0.0001, verbouse = 1,kmax = 20)->int:
+    out = _kMean(data,1,maxit,reldev)
+    meanError = list()
+    meanError.append(getMeanError(out))
+    meanErrorDer = [0]
+    for K in range(2,data.xy.shape[0]):
+        errors = [getMeanError(_kMean(data,K,maxit,reldev)) for i in range(2)]
+        if verbouse>2:
+            print("errors",errors)
+        error = min(errors)
+        if K>5 and ((error < abs(min(meanErrorDer)) and error > max(meanError)/2) or max(meanErrorDer)>0):
+            break
+        meanError.append(error)
+        meanErrorDer.append(meanError[-1]-meanError[-2])
+    K = min(range(len(meanErrorDer)), key=meanErrorDer.__getitem__)
+    if verbouse>1:
+        print("meanError",meanError)
+        print("meanErrorDer",meanErrorDer)
+    return K+1
 
-def kMean(data:Data,K:int,numit:int=10,numtest:int = 100)->Data:
+def _kMean(data:Data,K:int,maxit:int=100,reldev = 0.01,verbouse = 1):
     xmin = np.min(data.xy[:,0])
     xmax = np.max(data.xy[:,0])
     np.random.random((data.xy.shape[0],))
     ymin = np.min(data.xy[:,1])
     ymax = np.max(data.xy[:,1])
     np.sum(data.xy[:,1])/data.xy.shape[1]
-    print("x:", xmin,"-", xmax)
-    print("y:", ymin,"-", ymax)
+    if verbouse > 2:
+        print("x:", xmin,"-", xmax)
+        print("y:", ymin,"-", ymax)
     
     centroid = np.random.rand(K,data.xy.shape[1])
     centroid[:,0]=centroid[:,0]*abs(xmax-xmin)+xmin
     centroid[:,1]=centroid[:,1]*abs(ymax-ymin)+ymin
-    print("centroid",centroid)
+    if verbouse > 2:
+        print("centroid",centroid)
 
     data.centroids = centroid
 
@@ -86,7 +115,11 @@ def kMean(data:Data,K:int,numit:int=10,numtest:int = 100)->Data:
 
         data.center[i] = centroidId
 
-    for iterr in range(numit):
+    for iterr in range(maxit):
+        if iterr>1 and np.sum(np.abs(data.centroids-centroid)) < reldev: 
+            if verbouse > 0:
+                print("maxitReached!!!")
+            break
         #print("it:",iterr)
         #move centroid to center of assgned points
         nceSum = np.zeros(centroid.shape)
@@ -116,16 +149,30 @@ def kMean(data:Data,K:int,numit:int=10,numtest:int = 100)->Data:
         dist = np.linalg.norm(data.xy[i] - centroid[j,:])
         nceSum[j]+=dist
         nceCoun[j]+=1
-    print("res",nceSum/nceCoun)
-    print("resSum",np.sum(nceSum/nceCoun))
+    if verbouse > 2:
+        print("res",nceSum/nceCoun)
+        print("resSum",np.sum(nceSum/nceCoun))
 
     data.centroids = centroid
     return data
+def kMean(data:Data,K:int|None = None,maxit:int=100,reldev = 0.01,verbouse = 1,kmax = 20)->Data: 
+    if K is None:
+        K = getK(data,maxit,reldev,verbouse,kmax)
+    out = _kMean(data,K,maxit,reldev,verbouse)
+    return data
     
 if __name__ == "__main__":
+    """
     data = genBlob([(-5,5),(5,5),(5,-5),(-5,-5)],200)
     out = kMean(data,4,5)
     print(out.center)
     print(data.centroids)
     #out.show()
     out.showKmean()
+    """
+
+    blob1K = genBlob([(0,-5),(0,5)],100)
+    #blob1.show()
+
+    out1 = kMean(blob1K,verbouse = 2)
+    out1.showKmean()

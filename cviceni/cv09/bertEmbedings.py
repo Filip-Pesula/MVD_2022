@@ -13,7 +13,7 @@ class Embedings:
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.dist = CosineSimilarity(dim=0)
 
-    def getWordWec(self,text):
+    def getWordWec(self,text,verbouse = 1):
         tokenized_text = self.tokenizer.tokenize(text)
         print(tokenized_text)
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokenized_text)
@@ -51,13 +51,13 @@ class Embedings:
             
             # Use `cat_vec` to represent `token`.
             token_vecs_cat.append(cat_vec)
-        print ('Shape is: %d x %d' % (len(token_vecs_cat), len(token_vecs_cat[0])))
+        if verbouse > 0:
+            print ('Shape is: %d x %d' % (len(token_vecs_cat), len(token_vecs_cat[0])))
         return tokenized_text,token_vecs_cat
 
-    def processSentences(self,sentences):
+    def processSentences(self,sentences,verbouse = 1):
         for sentence in sentences:
-            data = self.getWordWec(sentence["sentence"])
-            
+            data = self.getWordWec(sentence["sentence"],verbouse)
             sentence["tokens"] = data[0]
             sentence["embedings"] = data[1]
         for sentence in sentences:
@@ -65,8 +65,10 @@ class Embedings:
             for other in sentences:
                 out = self.dist(sentence["embedings"][sentence["index"]],other["embedings"][other["index"]])
                 dif.append(out)
-            print(sentence["sentence"],'\n',dif)
+            if verbouse > 0:
+                print(sentence["sentence"],'\n',dif)
 
+            
 if __name__ == "__main__":
     embedings = Embedings()
     embedings.process("[CLS] Hello, this is Bert. [SEP]")
